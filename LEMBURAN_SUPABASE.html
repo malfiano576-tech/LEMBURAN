@@ -1,0 +1,733 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laporan Lemburan Tahunan</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#edf2f7;color:#203044;font-family:Arial,sans-serif}
+header{background:linear-gradient(135deg,#163653,#24618a);color:white;padding:25px}
+header h1{margin:0 0 8px;font-size:25px}
+header p{margin:0;color:#d5e5f2;font-size:12px;letter-spacing:1px}
+main{max-width:1400px;margin:auto;padding:20px}
+button{border:0;border-radius:7px;padding:10px 13px;cursor:pointer;font-weight:bold;margin:2px}
+.primary{background:#24618a;color:white}
+.secondary{background:#e1ebf3;color:#214a68}
+.danger{background:#fff0ef;color:#b42318}
+input,select{padding:10px;border:1px solid #cbd5e1;border-radius:7px;font:inherit;max-width:100%}
+.toolbar{display:flex;flex-wrap:wrap;align-items:end;gap:10px;margin-bottom:18px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12px;font-weight:bold;color:#647789}
+.layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:16px;align-items:start}
+.panel{background:white;border:1px solid #d8e2eb;border-radius:12px;overflow:hidden;margin-bottom:16px}
+.panelhead{padding:15px 17px;border-bottom:1px solid #d8e2eb;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.panelhead h2{font-size:15px;margin:0}
+.pad{padding:15px}
+#people{display:flex;flex-direction:column;gap:8px}
+.person{width:100%;text-align:left;background:#f0f5f9;color:#25465f;padding:13px;border:1px solid transparent;margin:0}
+.person.active{background:#dcecf8;border-color:#80afd1}
+.muted{font-size:12px;color:#718096;line-height:1.6}
+.empty{text-align:center;padding:45px 15px;color:#718096}
+.hidden{display:none!important}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:15px}
+.stat{background:#f2f6fa;border-radius:9px;padding:14px}
+.stat small{display:block;color:#647789;margin-bottom:8px}
+.stat strong{font-size:21px;color:#163653}
+.tablewrap{overflow-x:auto;padding:0 15px 18px}
+table{border-collapse:collapse;width:100%;min-width:900px;font-size:13px}
+th{background:#edf3f8;color:#294a63;text-align:left;white-space:nowrap}
+th,td{padding:11px 9px;border-bottom:1px solid #e2e8f0;vertical-align:top}
+tfoot td{font-weight:bold;background:#f2f6fa}
+.formgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.formgrid .field input{width:100%}
+.formactions{text-align:right;margin-top:15px}
+@media(max-width:800px){
+ main{padding:10px}
+ .layout{grid-template-columns:1fr}
+ .stats{grid-template-columns:1fr}
+ .formgrid{grid-template-columns:1fr 1fr}
+ header{padding:20px}
+}
+@media print{
+ body{background:white}
+ main{padding:0}
+ .toolbar,.sidebar,.noPrint,#formPanel{display:none!important}
+ .layout{display:block}
+ .panel{border:0}
+ header{background:#163653!important;color:white!important}
+ .tablewrap{overflow:visible}
+ table{min-width:0;font-size:9px}
+ th,td{padding:5px 3px}
+}
+</style>
+</head>
+<body>
+<header>
+ <h1>LAPORAN LEMBURAN</h1>
+ <p>MAINTENANCE DEPARTMENT · REKAPITULASI TAHUNAN</p>
+</header>
+
+<main>
+ <div class="toolbar noPrint">
+  <div class="field">
+   <label>TAHUN LAPORAN</label>
+   <select id="year"></select>
+  </div>
+  <button class="primary" onclick="addPerson()">+ Tambah Nama</button>
+  <button class="secondary" onclick="exportCSV()">Ekspor CSV</button>
+  <button class="secondary" onclick="backup()">Backup Data</button>
+  <button class="secondary" onclick="document.getElementById('restore').click()">Pulihkan Backup</button>
+  <input id="restore" type="file" accept=".json" hidden onchange="restoreData(event)">
+  <button class="secondary" onclick="window.print()">Cetak Laporan</button>
+ </div>
+
+ <div class="layout">
+  <aside class="panel sidebar">
+   <div class="panelhead">
+    <h2>Nama Karyawan</h2>
+    <span id="peopleCount" class="muted">0 nama</span>
+   </div>
+   <div class="pad">
+    <div id="people"></div>
+    <p class="muted">Klik nama karyawan untuk membuka tabel lemburan masing-masing.</p>
+   </div>
+  </aside>
+
+  <section>
+   <div class="panel" id="report">
+    <div id="welcome" class="empty">
+     <div style="font-size:35px">▤</div>
+     <h3>Pilih Nama Karyawan</h3>
+     <p>Klik nama di menu sebelah kiri untuk melihat laporan.</p>
+    </div>
+
+    <div id="details" class="hidden">
+     <div class="panelhead">
+      <div>
+       <h2 id="personName"></h2>
+       <span class="muted" id="period"></span>
+      </div>
+      <div class="noPrint">
+       <button class="secondary" onclick="renamePerson()">Ubah Nama</button>
+       <button class="danger" onclick="deletePerson()">Hapus Nama</button>
+      </div>
+     </div>
+
+     <div class="stats">
+      <div class="stat"><small>JUMLAH CATATAN</small><strong id="count">0</strong></div>
+      <div class="stat"><small>TOTAL JAM LEMBUR</small><strong id="hours">0 jam</strong></div>
+      <div class="stat"><small>TAHUN LAPORAN</small><strong id="yearStat"></strong></div>
+     </div>
+
+     <div class="panelhead noPrint">
+      <h2>Riwayat Lemburan</h2>
+      <div>
+       <button class="primary" onclick="openForm()">+ Tambah</button>
+       <button class="secondary" onclick="copyWA()">Salin ke WA</button>
+      </div>
+     </div>
+
+     <div class="tablewrap">
+      <table>
+       <thead>
+        <tr>
+         <th>No.</th>
+         <th>Hari</th>
+         <th>Tanggal</th>
+         <th>Jam Mulai</th>
+         <th>Jam Selesai</th>
+         <th>Keperluan</th>
+         <th>Total Jam</th>
+         <th class="noPrint">Aksi</th>
+        </tr>
+       </thead>
+       <tbody id="rows"></tbody>
+       <tfoot>
+        <tr>
+         <td colspan="6" style="text-align:right">TOTAL JAM LEMBUR</td>
+         <td id="grandTotal">0 jam</td>
+         <td class="noPrint"></td>
+        </tr>
+       </tfoot>
+      </table>
+      <div id="noRows" class="empty hidden">
+       <h3>Belum ada catatan</h3>
+       <p>Tambahkan lemburan untuk tahun yang dipilih.</p>
+      </div>
+     </div>
+    </div>
+   </div>
+
+   <div class="panel hidden" id="formPanel">
+    <div class="panelhead">
+     <h2 id="formTitle">Tambah Lemburan</h2>
+     <button class="secondary" onclick="closeForm()">Tutup</button>
+    </div>
+    <div class="pad">
+     <form id="entryForm">
+      <div class="formgrid">
+       <div class="field">
+        <label>TANGGAL</label>
+        <input id="date" type="date" required>
+       </div>
+       <div class="field">
+        <label>JAM MULAI</label>
+        <input id="start" type="time" required>
+       </div>
+       <div class="field">
+        <label>JAM SELESAI</label>
+        <input id="end" type="time" required>
+       </div>
+       <div class="field" style="grid-column:span 2">
+        <label>KEPERLUAN</label>
+        <input id="purpose" maxlength="200" placeholder="Contoh: Setting mesin Rollam" required>
+       </div>
+      </div>
+
+      <p class="muted">
+       Jam mulai mengikuti hari secara otomatis: Senin–Kamis 16:00,
+       Jumat 16:30, Sabtu 13:00. Kamu tetap bisa mengubah jam secara manual.
+       Minggu dapat diisi manual. Jam selesai yang lebih awal daripada jam
+       mulai dianggap melewati tengah malam.
+      </p>
+
+      <div class="formactions">
+       <button type="button" class="secondary" onclick="resetForm()">Kosongkan</button>
+       <button type="submit" class="primary">Simpan Data</button>
+      </div>
+     </form>
+    </div>
+   </div>
+  </section>
+ </div>
+
+ <p class="muted">
+  Data utama tersimpan online di Supabase. <span id="syncStatus">Menghubungkan ke Supabase...</span>
+  Backup tetap disarankan secara berkala.
+ </p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://iphiolhqpaxhiwwigxyl.supabase.co";
+const SUPABASE_KEY = "sb_publishable_bNjEu-tOspwFelkM2CFo7A_Ds9349Kg";
+const PEOPLE_TABLE = "lemburan_tahunan_people";
+const ENTRIES_TABLE = "lemburan_tahunan_entries";
+let supabaseClient = null;
+let syncReady = false;
+let syncedSnapshot = {people: [], entries: []};
+let syncQueue = Promise.resolve();
+
+const KEY = 'laporan_lemburan_profesional_v2';
+
+let db = {people: [], entries: []};
+let selected = null;
+let editing = null;
+
+const $ = id => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({
+ '&':'&amp;',
+ '<':'&lt;',
+ '>':'&gt;',
+ '"':'&quot;',
+ "'":'&#39;'
+}[c]));
+
+function setSyncStatus(message, error=false){
+ const el = $('syncStatus');
+ if(el){ el.textContent = message; el.style.color = error ? '#b42318' : '#39704a'; }
+}
+
+function cloneData(value){
+ return JSON.parse(JSON.stringify(value));
+}
+
+function save(){
+ localStorage.setItem(KEY, JSON.stringify(db));
+ if(syncReady && supabaseClient){
+  syncQueue = syncQueue.then(syncChanges).catch(error=>{
+   console.error(error);
+   setSyncStatus('Gagal menyimpan online: '+(error.message || error), true);
+  });
+ }
+}
+
+function loadLocal(){
+ try {
+  const x = JSON.parse(localStorage.getItem(KEY) || 'null');
+  if(x && Array.isArray(x.people) && Array.isArray(x.entries)) return x;
+ } catch(e) {
+  alert('Data cadangan browser tidak dapat dibaca. Gunakan file backup jika tersedia.');
+ }
+ return {people: [], entries: []};
+}
+
+async function fetchRemote(){
+ const [peopleResult, entriesResult] = await Promise.all([
+  supabaseClient.from(PEOPLE_TABLE).select('id,name'),
+  supabaseClient.from(ENTRIES_TABLE).select('id,person,date,start_time,end_time,purpose')
+ ]);
+ if(peopleResult.error) throw peopleResult.error;
+ if(entriesResult.error) throw entriesResult.error;
+ return {
+  people: (peopleResult.data || []).map(p=>({id:p.id,name:p.name})),
+  entries: (entriesResult.data || []).map(e=>({
+   id:e.id,person:e.person,date:e.date,start:e.start_time,
+   end:e.end_time,purpose:e.purpose
+  }))
+ };
+}
+
+async function writeAllToRemote(data){
+ if(data.people.length){
+  const {error}=await supabaseClient.from(PEOPLE_TABLE)
+   .upsert(data.people.map(p=>({id:p.id,name:p.name})),{onConflict:'id'});
+  if(error) throw error;
+ }
+ if(data.entries.length){
+  const {error}=await supabaseClient.from(ENTRIES_TABLE)
+   .upsert(data.entries.map(e=>({
+    id:e.id,person:e.person,date:e.date,start_time:e.start,
+    end_time:e.end,purpose:e.purpose
+   })),{onConflict:'id'});
+  if(error) throw error;
+ }
+}
+
+async function syncChanges(){
+ const oldPeople=new Map(syncedSnapshot.people.map(x=>[x.id,x]));
+ const newPeople=new Map(db.people.map(x=>[x.id,x]));
+ const oldEntries=new Map(syncedSnapshot.entries.map(x=>[x.id,x]));
+ const newEntries=new Map(db.entries.map(x=>[x.id,x]));
+ const changedPeople=db.people.filter(x=>!oldPeople.has(x.id)||JSON.stringify(oldPeople.get(x.id))!==JSON.stringify(x));
+ const changedEntries=db.entries.filter(x=>!oldEntries.has(x.id)||JSON.stringify(oldEntries.get(x.id))!==JSON.stringify(x));
+ const removedEntries=syncedSnapshot.entries.filter(x=>!newEntries.has(x.id));
+ const removedPeople=syncedSnapshot.people.filter(x=>!newPeople.has(x.id));
+
+ if(changedPeople.length){
+  const {error}=await supabaseClient.from(PEOPLE_TABLE)
+   .upsert(changedPeople.map(p=>({id:p.id,name:p.name})),{onConflict:'id'});
+  if(error) throw error;
+ }
+ if(changedEntries.length){
+  const {error}=await supabaseClient.from(ENTRIES_TABLE)
+   .upsert(changedEntries.map(e=>({
+    id:e.id,person:e.person,date:e.date,start_time:e.start,
+    end_time:e.end,purpose:e.purpose
+   })),{onConflict:'id'});
+  if(error) throw error;
+ }
+ if(removedEntries.length){
+  const {error}=await supabaseClient.from(ENTRIES_TABLE).delete().in('id',removedEntries.map(x=>x.id));
+  if(error) throw error;
+ }
+ if(removedPeople.length){
+  const {error}=await supabaseClient.from(PEOPLE_TABLE).delete().in('id',removedPeople.map(x=>x.id));
+  if(error) throw error;
+ }
+ syncedSnapshot=cloneData(db);
+ setSyncStatus('Tersimpan online di Supabase.');
+}
+
+async function initializeSupabase(){
+ try {
+  if(!window.supabase || !window.supabase.createClient) throw new Error('Library Supabase tidak berhasil dimuat. Periksa koneksi internet.');
+  supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  setSyncStatus('Menghubungkan ke Supabase...');
+  let remote=await fetchRemote();
+  const local=loadLocal();
+  if(remote.people.length===0 && remote.entries.length===0 && (local.people.length || local.entries.length)){
+   db=local;
+   await writeAllToRemote(db);
+   remote=await fetchRemote();
+   setSyncStatus('Data lama berhasil dipindahkan ke Supabase.');
+  } else {
+   db=remote;
+   setSyncStatus('Terhubung — data tersimpan online di Supabase.');
+  }
+  syncedSnapshot=cloneData(db);
+  localStorage.setItem(KEY,JSON.stringify(db));
+  syncReady=true;
+  render();
+ } catch(e) {
+  console.error(e);
+  syncReady=false;
+  setSyncStatus('Belum terhubung ke Supabase: '+(e.message || 'periksa pengaturan tabel'),true);
+  alert('Gagal menghubungkan ke Supabase. Jalankan SQL penyiapan tabel terlebih dahulu.\n\nDetail: '+(e.message || e));
+  db=loadLocal();
+  render();
+ }
+}
+function currentYear(){
+ return Number($('year').value) || new Date().getFullYear();
+}
+
+function hours(e){
+ const a = e.start.split(':').map(Number);
+ const b = e.end.split(':').map(Number);
+ let n = b[0]*60 + b[1] - (a[0]*60 + a[1]);
+ if(n < 0) n += 1440;
+ return n / 60;
+}
+
+function fh(n){
+ return n.toLocaleString('id-ID',{maximumFractionDigits:2}) + ' jam';
+}
+
+function day(date){
+ return ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu']
+ [new Date(date+'T00:00:00').getDay()];
+}
+
+function fd(date){
+ const [y,m,d] = date.split('-');
+ return d+'/'+m+'/'+y;
+}
+
+function getDefaultStart(date){
+ if(!date) return '';
+ const weekday = new Date(date+'T00:00:00').getDay();
+
+ if(weekday === 5) return '16:30'; // Jumat
+ if(weekday === 6) return '13:00'; // Sabtu
+ if(weekday === 0) return '';      // Minggu: manual
+
+ return '16:00';                  // Senin-Kamis
+}
+
+function years(){
+ const old = currentYear();
+ const set = new Set([new Date().getFullYear()]);
+
+ db.entries.forEach(e => set.add(Number(e.date.slice(0,4))));
+
+ $('year').innerHTML = [...set].sort((a,b)=>b-a)
+  .map(y=>`<option value="${y}">${y}</option>`).join('');
+
+ $('year').value = set.has(old) ? old : new Date().getFullYear();
+}
+
+function render(){
+ years();
+
+ $('peopleCount').textContent = db.people.length + ' nama';
+
+ $('people').innerHTML = db.people.map(p=>`
+  <button class="person ${p.id===selected?'active':''}"
+   onclick="selectPerson('${p.id}')">
+   👤 ${esc(p.name)}
+  </button>
+ `).join('') || '<p class="muted">Klik Tambah Nama untuk memulai.</p>';
+
+ const p = db.people.find(p=>p.id===selected);
+
+ $('welcome').classList.toggle('hidden',!!p);
+ $('details').classList.toggle('hidden',!p);
+
+ if(!p) return;
+
+ const list = db.entries
+  .filter(e=>e.person===p.id && Number(e.date.slice(0,4))===currentYear())
+  .sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+
+ const total = list.reduce((s,e)=>s+hours(e),0);
+
+ $('personName').textContent = p.name;
+ $('period').textContent = 'Laporan Tahun '+currentYear();
+ $('count').textContent = list.length;
+ $('hours').textContent = fh(total);
+ $('yearStat').textContent = currentYear();
+ $('grandTotal').textContent = fh(total);
+
+ $('rows').innerHTML = list.map((e,i)=>`
+  <tr>
+   <td>${i+1}</td>
+   <td>${day(e.date)}</td>
+   <td>${fd(e.date)}</td>
+   <td>${esc(e.start)}</td>
+   <td>${esc(e.end)}</td>
+   <td>${esc(e.purpose)}</td>
+   <td>${fh(hours(e))}</td>
+   <td class="noPrint" style="white-space:nowrap">
+    <button class="secondary" onclick="editEntry('${e.id}')">Edit</button>
+    <button class="danger" onclick="deleteEntry('${e.id}')">Hapus</button>
+   </td>
+  </tr>
+ `).join('');
+
+ $('noRows').classList.toggle('hidden',list.length>0);
+}
+
+function selectPerson(id){
+ selected = id;
+ closeForm();
+ render();
+}
+
+function addPerson(){
+ let name = prompt('Masukkan nama karyawan:');
+ if(name === null) return;
+ name = name.trim();
+ if(!name) return alert('Nama tidak boleh kosong.');
+
+ if(db.people.some(p=>p.name.toLowerCase()===name.toLowerCase())){
+  return alert('Nama tersebut sudah ada.');
+ }
+
+ const p = {id:uid(),name};
+ db.people.push(p);
+ selected = p.id;
+ save();
+ render();
+}
+
+function renamePerson(){
+ const p = db.people.find(p=>p.id===selected);
+ if(!p) return;
+
+ let n = prompt('Ubah nama karyawan:',p.name);
+ if(n === null) return;
+ n = n.trim();
+ if(!n) return;
+
+ if(db.people.some(x=>x.id!==p.id && x.name.toLowerCase()===n.toLowerCase())){
+  return alert('Nama tersebut sudah digunakan.');
+ }
+
+ p.name = n;
+ save();
+ render();
+}
+
+function deletePerson(){
+ const p = db.people.find(p=>p.id===selected);
+ if(!p) return;
+
+ if(!confirm('Hapus '+p.name+' beserta semua catatan lemburannya?')) return;
+
+ db.people = db.people.filter(x=>x.id!==selected);
+ db.entries = db.entries.filter(x=>x.person!==selected);
+ selected = null;
+ save();
+ render();
+}
+
+function openForm(e=null){
+ if(!selected) return alert('Pilih nama karyawan terlebih dahulu.');
+
+ editing = e ? e.id : null;
+ $('formTitle').textContent = e ? 'Edit Lemburan' : 'Tambah Lemburan';
+
+ const today = new Date();
+ const defaultDate = currentYear() + '-' +
+  String(today.getMonth()+1).padStart(2,'0') + '-' +
+  String(today.getDate()).padStart(2,'0');
+
+ $('date').value = e ? e.date : defaultDate;
+
+ if(e){
+  // Saat mengedit, pertahankan jam tersimpan.
+  $('start').value = e.start;
+  $('end').value = e.end;
+  $('purpose').value = e.purpose;
+ } else {
+  $('start').value = getDefaultStart($('date').value);
+  $('end').value = '';
+  $('purpose').value = '';
+ }
+
+ $('formPanel').classList.remove('hidden');
+ $('formPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function closeForm(){
+ $('formPanel').classList.add('hidden');
+ editing = null;
+ $('entryForm').reset();
+}
+
+function resetForm(){
+ editing = null;
+ $('entryForm').reset();
+ $('formTitle').textContent = 'Tambah Lemburan';
+ $('start').value = getDefaultStart($('date').value);
+}
+
+function editEntry(id){
+ const e = db.entries.find(x=>x.id===id);
+ if(e) openForm(e);
+}
+
+function deleteEntry(id){
+ if(!confirm('Hapus catatan lemburan ini?')) return;
+ db.entries = db.entries.filter(e=>e.id!==id);
+ save();
+ render();
+}
+
+// Perubahan tanggal akan menyesuaikan jam mulai secara otomatis.
+// Pengguna tetap dapat mengubah jam mulai secara manual.
+$('date').addEventListener('change',()=>{
+ if(!editing){
+  $('start').value = getDefaultStart($('date').value);
+ }
+});
+
+$('entryForm').addEventListener('submit',e=>{
+ e.preventDefault();
+
+ const data = {
+  person:selected,
+  date:$('date').value,
+  start:$('start').value,
+  end:$('end').value,
+  purpose:$('purpose').value.trim()
+ };
+
+ if(!data.date || !data.start || !data.end || !data.purpose){
+  return alert('Lengkapi semua kolom.');
+ }
+
+ if(editing){
+  const i = db.entries.findIndex(e=>e.id===editing);
+  if(i>=0) db.entries[i] = {...db.entries[i],...data};
+ } else {
+  db.entries.push({id:uid(),...data});
+ }
+
+ save();
+ closeForm();
+ render();
+});
+
+$('year').addEventListener('change',render);
+
+function reportText(){
+ const p = db.people.find(p=>p.id===selected);
+ if(!p) return '';
+
+ const list = db.entries
+  .filter(e=>e.person===selected && Number(e.date.slice(0,4))===currentYear())
+  .sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+
+ const total = list.reduce((s,e)=>s+hours(e),0);
+
+ const lines = [
+  'LAPORAN LEMBURAN',
+  'Nama: '+p.name,
+  'Periode: Tahun '+currentYear(),
+  '',
+  'No. | Hari | Tanggal | Jam Mulai | Jam Selesai | Keperluan | Total Jam'
+ ];
+
+ list.forEach((e,i)=>{
+  lines.push(
+   `${i+1} | ${day(e.date)} | ${fd(e.date)} | ${e.start} | ${e.end} | ${e.purpose} | ${fh(hours(e))}`
+  );
+ });
+
+ lines.push('');
+ lines.push('Total catatan: '+list.length);
+ lines.push('Total lemburan: '+fh(total));
+
+ return lines.join('\n');
+}
+
+async function copyWA(){
+ if(!selected) return alert('Pilih nama karyawan terlebih dahulu.');
+
+ const text = reportText();
+
+ try {
+  await navigator.clipboard.writeText(text);
+  alert('Laporan disalin. Buka WhatsApp lalu tekan Ctrl+V.');
+ } catch(e) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  const ok = document.execCommand('copy');
+  ta.remove();
+
+  alert(ok
+   ? 'Laporan disalin. Buka WhatsApp lalu tekan Ctrl+V.'
+   : 'Gagal menyalin otomatis. Coba buka file di Chrome.');
+ }
+}
+
+function download(content,name,type){
+ const blob = new Blob([content],{type});
+ const url = URL.createObjectURL(blob);
+ const a = document.createElement('a');
+ a.href = url;
+ a.download = name;
+ a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function exportCSV(){
+ if(!selected) return alert('Pilih nama karyawan dahulu.');
+
+ const p = db.people.find(p=>p.id===selected);
+ const list = db.entries
+  .filter(e=>e.person===selected && Number(e.date.slice(0,4))===currentYear())
+  .sort((a,b)=>a.date.localeCompare(b.date));
+
+ const data = [
+  ['No','Hari','Tanggal','Jam Mulai','Jam Selesai','Keperluan','Total Jam']
+ ];
+
+ list.forEach((e,i)=>{
+  data.push([i+1,day(e.date),fd(e.date),e.start,e.end,e.purpose,hours(e)]);
+ });
+
+ const csv = '\ufeff' + data.map(r=>
+  r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')
+ ).join('\r\n');
+
+ download(csv,'Lemburan_'+p.name.replace(/[^a-z0-9_-]/gi,'_')+'_'+currentYear()+'.csv','text/csv;charset=utf-8');
+}
+
+function backup(){
+ download(JSON.stringify(db,null,2),'backup_lemburan.json','application/json');
+}
+
+function restoreData(ev){
+ const file = ev.target.files[0];
+ if(!file) return;
+
+ const reader = new FileReader();
+
+ reader.onload = ()=>{
+  try {
+   const x = JSON.parse(reader.result);
+
+   if(!Array.isArray(x.people)||!Array.isArray(x.entries)) throw Error();
+
+   if(confirm('Pulihkan backup? Data yang sekarang akan diganti.')){
+    db = x;
+    selected = null;
+    save();
+    render();
+    alert('Backup berhasil dipulihkan.');
+   }
+  } catch(e) {
+   alert('File backup tidak valid.');
+  }
+
+  ev.target.value = '';
+ };
+
+ reader.readAsText(file);
+}
+
+initializeSupabase();
+</script>
+</body>
+</html>
